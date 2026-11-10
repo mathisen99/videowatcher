@@ -11,7 +11,7 @@ jobs:
       - name: Install Debian desktop dependencies
         run: |
           apt-get update
-          apt-get install -y python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 vlc vlc-plugin-base shellcheck desktop-file-utils
+          apt-get install -y python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 vlc vlc-plugin-base shellcheck desktop-file-utils xvfb dbus-x11
       - name: Check Python and shell
         run: |
           python3 -m unittest discover -s tests -v
@@ -24,3 +24,13 @@ jobs:
           bash install.sh --skip-deps --source "$PWD" --prefix /tmp/video-watcher-stage
           desktop-file-validate /tmp/video-watcher-stage/share/applications/io.github.mathisen99.VideoWatcher.desktop
           desktop-file-validate /tmp/video-watcher-stage/config/autostart/io.github.mathisen99.VideoWatcher.desktop
+      - name: Exercise native GTK interface
+        env:
+          VIDEOWATCHER_SCREENSHOT_DIR: /tmp/video-watcher-screenshots
+        run: timeout 40s xvfb-run -a dbus-run-session -- env GSK_RENDERER=cairo python3 tools/test_ui.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: black-cat-ui
+          path: /tmp/video-watcher-screenshots/*.png
+          if-no-files-found: ignore

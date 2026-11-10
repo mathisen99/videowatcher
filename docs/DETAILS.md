@@ -4,7 +4,7 @@ The short installation instructions are in [the README](../README.md).
 
 ## Installer options
 
-`install.sh` defaults to installing native system dependencies and enabling login startup. Run it as your normal desktop user; it uses sudo only for package installation. It downloads the tagged `v0.3.0` source archive before installing anything.
+`install.sh` defaults to installing native system dependencies and enabling login startup. Run it as your normal desktop user; it uses sudo only for package installation. It downloads the current `main` source archive before installing anything, so rerunning the one-line command installs the latest update without a separate release step.
 
 For a local checkout, use `bash install.sh --source "$PWD"`. Options: `--no-autostart` skips creating a login entry, `--skip-deps` uses already-installed dependencies, and `--prefix DIRECTORY` stages under `DIRECTORY/{share,bin,config}` for testing. On an existing install, `--no-autostart` leaves any existing login entry unchanged; remove it as described below to disable it.
 
@@ -67,7 +67,9 @@ GDK_BACKEND=wayland python3 run.py
 GDK_BACKEND=x11 python3 run.py
 ```
 
-Closing the window keeps monitoring. Launch the app again to reopen the same instance. **Quit** stops tracking. It must be running during playback; earlier VLC playback cannot be reconstructed. The first close explains the background behavior.
+The window's **×** closes the app and stops tracking. **☰ → Hide and Keep Tracking** explicitly hides the window while keeping monitoring active. Launch the app again to reopen the same instance. It must be running during playback; earlier VLC playback cannot be reconstructed. Login autostart can still launch it hidden. Before upgrading from a version older than 0.4, use that version's **Quit** button.
+
+The black-cat theme uses native GTK widgets and bundled SVG art. **Add Folder**, **Manage Folders**, **Refresh**, **Export**, and **Settings** are in the hamburger menu. Keyboard shortcuts: Ctrl+O adds a folder, F5 refreshes, Ctrl+, opens settings, and Ctrl+Q exits. The theme requires no downloaded fonts or images.
 
 ## What counts as watching?
 

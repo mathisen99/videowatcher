@@ -77,7 +77,7 @@ class InstallerTests(unittest.TestCase):
             for name in ("install.py", "run.py", "videowatcher", "assets", "README.md", "docs"):
                 output.add(
                     ROOT / name,
-                    arcname="videowatcher-0.3.0/" + name,
+                    arcname="videowatcher-main/" + name,
                     filter=lambda entry: None if "__pycache__" in entry.name else entry,
                 )
         env = self.curl_stub(

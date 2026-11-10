@@ -26,6 +26,17 @@ from .statistics import (
     summary_export,
 )
 
+UI_ASSETS = Path(__file__).resolve().parent / "ui"
+
+
+def art(filename, size):
+    paintable = Gtk.IconPaintable.new_for_file(
+        Gio.File.new_for_path(str(UI_ASSETS / filename)), size, 1
+    )
+    widget = Gtk.Image.new_from_paintable(paintable)
+    widget.set_pixel_size(size)
+    return widget
+
 
 def date_text(value):
     return (
@@ -45,6 +56,7 @@ def time_text(seconds, precise=False):
 
 def facts(items):
     grid = Gtk.Grid(column_spacing=24, row_spacing=10)
+    grid.add_css_class("facts-grid")
     for index, (name, value) in enumerate(items):
         grid.attach(label(name, "dim-label", xalign=0, valign=Gtk.Align.START), 0, index, 1, 1)
         grid.attach(
@@ -97,6 +109,7 @@ class Application(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
         data = Path(
             os.environ.get(
                 "VIDEOWATCHER_DATA_DIR",
@@ -131,7 +144,7 @@ class Application(Adw.Application):
 class Window(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(
-            application=app, title="Video Watcher", default_width=1100, default_height=720
+            application=app, title="Video Watcher", default_width=1180, default_height=780
         )
         self.app, self.store = app, app.store
         self.worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="folder-scan")
@@ -145,88 +158,162 @@ class Window(Adw.ApplicationWindow):
         self.rows = {}
         self.rendered_rows = {}
         self.dialogs = set()
-        self.connect("close-request", self.hide_window)
+        self.add_css_class("night-watch")
+        self.connect("close-request", self.close_window)
 
         css = Gtk.CssProvider()
-        css.load_from_data(b"""
-            .summary { padding: 16px 20px; border-radius: 12px; }
-            .stat-number { font-size: 26px; font-weight: 700; }
-            .video-row { padding: 12px 14px; }
-            .sidebar { padding: 12px; }
-            .status-line { padding: 10px 16px; }
-            .muted { opacity: 0.65; }
-        """)
+        css.load_from_path(str(UI_ASSETS / "midnight.css"))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+        self.actions = {}
+        for name, callback in (
+            ("add-folder", self.choose_folder),
+            ("folders", self.manage_folders),
+            ("refresh", self.refresh),
+            ("statistics", self.show_statistics),
+            ("export", self.export),
+            ("settings", self.settings),
+            ("background", self.hide_window),
+            ("quit", self.app.quit),
+        ):
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", lambda _action, _parameter, callback=callback: callback())
+            self.add_action(action)
+            self.actions[name] = action
+        app.set_accels_for_action("win.add-folder", ["<Primary>o"])
+        app.set_accels_for_action("win.refresh", ["F5"])
+        app.set_accels_for_action("win.settings", ["<Primary>comma"])
+        app.set_accels_for_action("win.quit", ["<Primary>q"])
+
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.set_content(outer)
         header = Adw.HeaderBar()
-        header.set_title_widget(
-            Adw.WindowTitle(title="Video Watcher", subtitle="Your courses, at your pace")
+        header.set_title_widget(Gtk.Box())
+        brand = Gtk.Box(spacing=10)
+        brand.append(art("cat-mark.svg", 28))
+        brand.append(label("Video Watcher", "brand-name"))
+        header.pack_start(brand)
+        menu = Gio.Menu()
+        for entries in (
+            (
+                ("Add Folder…", "add-folder"),
+                ("Manage Folders…", "folders"),
+                ("Refresh Library", "refresh"),
+            ),
+            (("Statistics", "statistics"), ("Export CSV…", "export")),
+            (("Settings…", "settings"), ("Hide and Keep Tracking", "background")),
+        ):
+            section = Gio.Menu()
+            for title, name in entries:
+                section.append(title, "win." + name)
+            menu.append_section(None, section)
+        self.menu_button = Gtk.MenuButton(
+            icon_name="open-menu-symbolic", menu_model=menu, tooltip_text="Main menu"
         )
-        header.pack_start(button("Add folder", self.choose_folder, "suggested-action"))
-        self.refresh_button = button("Refresh", self.refresh)
-        header.pack_start(self.refresh_button)
-        header.pack_end(button("Quit", self.app.quit))
-        header.pack_end(button("Settings", self.settings))
+        header.pack_end(self.menu_button)
         outer.append(header)
 
         body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, vexpand=True)
         outer.append(body)
-        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, width_request=225)
+        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, width_request=210)
         sidebar.add_css_class("sidebar")
-        sidebar.append(label("YOUR FOLDERS", "caption-heading", xalign=0))
+        side_heading = label("YOUR COURSES", "eyebrow", xalign=0)
+        side_heading.add_css_class("sidebar-heading")
+        sidebar.append(side_heading)
         self.folder_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
         self.folder_list.add_css_class("navigation-sidebar")
         self.folder_list.connect("row-selected", self.folder_selected)
         folder_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         folder_scroll.set_child(self.folder_list)
         sidebar.append(folder_scroll)
-        sidebar.append(button("Manage folders", self.manage_folders))
-        sidebar.append(
+        companion = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        companion.add_css_class("sidebar-note")
+        companion.append(label("NINE LIVES.", "eyebrow", xalign=0))
+        companion.append(label("One course at a time.", xalign=0))
+        companion.append(
             label(
-                "Includes subfolders.\nYour videos stay where they are.",
+                "Your quiet study buddy.\nEverything stays on this device.",
                 "dim-label",
                 xalign=0,
                 wrap=True,
             )
         )
+        sidebar.append(companion)
         body.append(sidebar)
-        body.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
 
-        content = margins(
-            Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, hexpand=True), 22
-        )
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, hexpand=True)
+        content.add_css_class("main-content")
         body.append(content)
+        hero = Gtk.Box(spacing=20)
+        introduction = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=7, hexpand=True, valign=Gtk.Align.CENTER
+        )
+        eyebrow = label("THE BLACK CAT EDITION", "eyebrow", xalign=0)
+        eyebrow.add_css_class("amber")
+        introduction.append(eyebrow)
         title_box = Gtk.Box(spacing=12)
-        self.heading = label("All videos", "title-1", xalign=0, hexpand=True)
+        self.heading = label(
+            "Your library", "hero-title", xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END
+        )
         title_box.append(self.heading)
-        title_box.append(button("Statistics", self.show_statistics))
-        title_box.append(button("Export CSV", self.export))
-        content.append(title_box)
+        insights = button("Statistics", self.show_statistics, "quiet-button")
+        insights.set_valign(Gtk.Align.CENTER)
+        title_box.append(insights)
+        introduction.append(title_box)
+        self.subtitle = label(
+            "Your courses. Your pace. Your place, remembered.", "hero-subtitle", xalign=0, wrap=True
+        )
+        introduction.append(self.subtitle)
+        hero.append(introduction)
+        hero.append(art("midnight-cat.svg", 142))
+        content.append(hero)
+
         stats = Gtk.Box(spacing=12, homogeneous=True)
-        self.stats = []
-        for title in ("Videos", "Completed", "Rewatches", "Time watched"):
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-            box.add_css_class("card")
-            box.add_css_class("summary")
+        self.stats, self.stat_hints = [], []
+        for title, icon in (
+            ("VIDEOS", "video-x-generic-symbolic"),
+            ("COMPLETED", "emblem-ok-symbolic"),
+            ("REWATCHES", "media-playlist-repeat-symbolic"),
+            ("TIME WATCHED", "document-open-recent-symbolic"),
+        ):
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+            card.add_css_class("summary")
+            caption = Gtk.Box(spacing=8)
+            caption.append(Gtk.Image.new_from_icon_name(icon))
+            caption.append(label(title, "stat-label", xalign=0))
+            card.append(caption)
             value = label("0", "stat-number", xalign=0)
             self.stats.append(value)
-            box.append(value)
-            box.append(label(title, "dim-label", xalign=0))
-            stats.append(box)
+            card.append(value)
+            hint = label("", "stat-hint", xalign=0)
+            self.stat_hints.append(hint)
+            card.append(hint)
+            stats.append(card)
         content.append(stats)
-        self.course_progress = Gtk.ProgressBar(show_text=True)
-        content.append(self.course_progress)
-        controls = Gtk.Box(spacing=12)
-        self.search = Gtk.SearchEntry(hexpand=True, placeholder_text="Search videos…")
+
+        progress_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        progress_card.add_css_class("course-card")
+        progress_header = Gtk.Box()
+        progress_header.append(label("COURSE PROGRESS", "eyebrow", xalign=0, hexpand=True))
+        self.progress_percent = label("0%", "progress-percent")
+        progress_header.append(self.progress_percent)
+        progress_card.append(progress_header)
+        self.course_progress = Gtk.ProgressBar()
+        progress_card.append(self.course_progress)
+        self.progress_detail = label("", "course-detail", xalign=0)
+        progress_card.append(self.progress_detail)
+        content.append(progress_card)
+
+        controls = Gtk.Box(spacing=10)
+        self.search = Gtk.SearchEntry(hexpand=True, placeholder_text="Find a lesson…")
         self.search.connect("search-changed", lambda _: self.render_library())
         controls.append(self.search)
         self.filter = Gtk.DropDown.new_from_strings(
             ["All videos", "Not started", "In progress", "Completed"]
         )
         self.filter.connect("notify::selected", lambda *_: self.render_library())
+        self.filter.set_tooltip_text("Filter by progress")
         controls.append(self.filter)
         self.sort = Gtk.DropDown.new_from_strings(["Name", "Recently watched", "Watch time"])
         self.sort.set_tooltip_text("Sort videos")
@@ -237,56 +324,64 @@ class Window(Adw.ApplicationWindow):
         self.stack = Gtk.Stack(vexpand=True)
         content.append(self.stack)
         self.empty = Adw.StatusPage(
-            title="Add your first course folder",
-            description="Choose a folder, then watch its videos in VLC.\nVideo Watcher will remember your progress.",
-            icon_name="folder-videos-symbolic",
+            title="A fresh chapter awaits",
+            description="Choose a course folder, then watch in VLC.\nI'll keep your place.",
         )
-        self.empty.set_child(button("Add folder", self.choose_folder, "suggested-action"))
+        self.empty.set_paintable(
+            Gtk.IconPaintable.new_for_file(
+                Gio.File.new_for_path(str(UI_ASSETS / "cat-mark.svg")), 96, 1
+            )
+        )
+        self.empty.set_child(button("Choose a folder", self.choose_folder, "suggested-action"))
         self.stack.add_named(self.empty, "empty")
         self.model = Gtk.StringList.new([])
         self.selection = Gtk.NoSelection(model=self.model)
         factory = Gtk.SignalListItemFactory()
         factory.connect("setup", self.setup_row)
         factory.connect("bind", self.bind_row)
-        self.list = Gtk.ListView(model=self.selection, factory=factory)
-        self.list.add_css_class("boxed-list")
+        self.list = Gtk.ListView(model=self.selection, factory=factory, single_click_activate=True)
+        self.list.add_css_class("library-list")
         self.list.connect("activate", lambda _, index: self.details(self.model.get_string(index)))
         scrolled = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
         scrolled.set_child(self.list)
         self.stack.add_named(scrolled, "videos")
-        self.count_label = label("", "dim-label", xalign=0)
+        self.count_label = label("", "library-caption", xalign=0)
         content.append(self.count_label)
-        self.status = label("Connecting to VLC…", xalign=0, ellipsize=Pango.EllipsizeMode.END)
-        self.status.add_css_class("status-line")
-        outer.append(Gtk.Separator())
-        outer.append(self.status)
+
+        status_bar = Gtk.Box(spacing=8)
+        status_bar.add_css_class("status-bar")
+        self.status_dot = Gtk.Image.new_from_icon_name("media-record-symbolic")
+        self.status_dot.set_pixel_size(10)
+        self.status_dot.add_css_class("status-dot")
+        status_bar.append(self.status_dot)
+        self.status = label(
+            "Connecting to VLC…",
+            "status-line",
+            xalign=0,
+            hexpand=True,
+            ellipsize=Pango.EllipsizeMode.END,
+        )
+        status_bar.append(self.status)
+        status_bar.append(label("LOCAL HISTORY  ·  NO CLOUD", "status-note"))
+        outer.append(status_bar)
         self.rebuild_folders()
         self.reload()
 
+    def close_window(self, *_):
+        self.app.quit()
+        return False
+
     def hide_window(self, *_):
-        if self.store.setting("background_notice", "0") == "0":
-            dialog, box = self.dialog("Keep tracking in the background", 450)
-            box.append(
-                label(
-                    "Closing this window keeps Video Watcher running. Reopen it from your app launcher to see progress. Use Quit to stop tracking.",
-                    wrap=True,
-                    xalign=0,
-                )
-            )
-
-            def accept():
-                self.store.set_setting("background_notice", "1")
-                dialog.close()
-                self.set_visible(False)
-
-            box.append(button("Got it — keep tracking", accept, "suggested-action"))
-        else:
-            self.set_visible(False)
-        return True
+        """Background mode is explicit; the window close button always quits."""
+        self.set_visible(False)
 
     def set_status(self, text):
         self.status.set_label(text)
         self.status.set_tooltip_text(text)
+        if text.startswith("Playing"):
+            self.status_dot.add_css_class("playing")
+        else:
+            self.status_dot.remove_css_class("playing")
 
     def schedule_reload(self):
         if not self.reload_source:
@@ -329,7 +424,13 @@ class Window(Adw.ApplicationWindow):
     def folder_selected(self, _, row):
         if row:
             self.selected_folder = row.folder
-            self.heading.set_label(Path(row.folder).name if row.folder else "All videos")
+            self.heading.set_label(Path(row.folder).name if row.folder else "Your library")
+            self.heading.set_tooltip_text(row.folder or "All monitored videos")
+            self.subtitle.set_label(
+                "Every lesson is a little progress."
+                if row.folder
+                else "Your courses. Your pace. Your place, remembered."
+            )
             self.render_library()
 
     def scope_rows(self):
@@ -356,9 +457,20 @@ class Window(Adw.ApplicationWindow):
         ]
         for widget, value in zip(self.stats, values):
             widget.set_label(value)
+        hints = [
+            "Includes subfolders"
+            if self.selected_folder
+            else f"In {len(self.store.folders())} course folders",
+            f"{summary['remaining']} left to complete",
+            "Additional full watches",
+            f"{summary['sessions']} watch sessions",
+        ]
+        for widget, hint in zip(self.stat_hints, hints):
+            widget.set_label(hint)
         self.course_progress.set_fraction(summary["fraction"])
-        self.course_progress.set_text(
-            f"{summary['completed']} of {summary['videos']} completed · {summary['fraction']:.0%}"
+        self.progress_percent.set_label(f"{summary['fraction']:.0%}")
+        self.progress_detail.set_label(
+            f"{summary['completed']} of {summary['videos']} completed"
             f" · {summary['in_progress']} in progress · {summary['not_started']} not started"
         )
         query = self.search.get_text().casefold()
@@ -394,9 +506,9 @@ class Window(Adw.ApplicationWindow):
                     self.model.splice(index, 1, [row["path"]])
         self.rendered_rows = {r["path"]: dict(r) for r in filtered}
         if not self.store.folders():
-            self.empty.set_title("Add your first course folder")
+            self.empty.set_title("A fresh chapter awaits")
             self.empty.set_description(
-                "Choose a folder, then watch its videos in VLC.\nVideo Watcher will remember your progress."
+                "Choose a course folder, then watch in VLC.\nI'll keep your place."
             )
         elif not rows:
             self.empty.set_title("No videos here yet")
@@ -412,21 +524,34 @@ class Window(Adw.ApplicationWindow):
     def setup_row(self, factory, item):
         box = Gtk.Box(spacing=16)
         box.add_css_class("video-row")
-        box.append(Gtk.Image.new_from_icon_name("video-x-generic-symbolic"))
+        tile = Gtk.Box(valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
+        tile.add_css_class("video-tile")
+        play_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
+        play_icon.set_hexpand(True)
+        tile.append(play_icon)
+        box.append(tile)
         names = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
-        title = label("", "heading", xalign=0, ellipsize=Pango.EllipsizeMode.END)
-        location = label("", "dim-label", xalign=0, ellipsize=Pango.EllipsizeMode.MIDDLE)
+        title = label("", "video-title", xalign=0, ellipsize=Pango.EllipsizeMode.END)
+        location = label("", "video-location", xalign=0, ellipsize=Pango.EllipsizeMode.MIDDLE)
         names.append(title)
         names.append(location)
         box.append(names)
-        progress_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5, width_request=145)
-        state = label("", xalign=0)
+        progress_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=7,
+            width_request=125,
+            valign=Gtk.Align.CENTER,
+        )
+        state = label("", "video-state", xalign=0)
         progress = Gtk.ProgressBar()
         progress_box.append(state)
         progress_box.append(progress)
         box.append(progress_box)
-        details = label("", "dim-label", xalign=1, width_chars=17)
+        details = label("", "video-history", xalign=1, width_chars=21)
         box.append(details)
+        arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+        arrow.add_css_class("row-arrow")
+        box.append(arrow)
         item.widgets = (title, location, state, progress, details)
         item.set_child(box)
 
@@ -437,25 +562,40 @@ class Window(Adw.ApplicationWindow):
         title.set_label(Path(path).stem)
         roots = [f for f in self.store.folders() if inside(path, f)]
         root = self.selected_folder or min(roots, key=len, default=str(Path(path).parent))
-        location.set_label(str(Path(path).relative_to(root)))
+        relative_parent = Path(path).relative_to(root).parent
+        course = str(relative_parent) if str(relative_parent) != "." else Path(root).name
+        location.set_label(f"{course}  ·  {Path(path).suffix.lstrip('.').upper()}")
         item.get_child().set_tooltip_text(path)
         fraction = (
             min(1, coverage(json.loads(row["ranges"])) / row["duration"]) if row["duration"] else 0
         )
+        for style in ("state-complete", "state-started", "state-new"):
+            state.remove_css_class(style)
         if row["completed_count"]:
-            state.set_label("✓ Completed" if row["cycle_done"] else f"Rewatching · {fraction:.0%}")
+            state.set_label("Completed" if row["cycle_done"] else f"Rewatching · {fraction:.0%}")
+            state.add_css_class("state-complete" if row["cycle_done"] else "state-started")
         elif row["plays"]:
             state.set_label(f"In progress · {fraction:.0%}" if row["duration"] else "In progress")
+            state.add_css_class("state-started")
         else:
             state.set_label("Not started")
+            state.add_css_class("state-new")
         progress.set_fraction(1.0 if row["cycle_done"] else fraction)
         count = row["completed_count"]
-        details.set_label(
-            f"{row['plays']} sessions · {count} completed\n"
-            + (f"Last: {date_text(row['last_seen'])}" if row["last_seen"] else "Never watched")
-        )
+        if row["last_seen"]:
+            last = (
+                datetime.fromisoformat(row["last_seen"]).astimezone().strftime("%d %b %Y · %H:%M")
+            )
+            plays, repeats = row["plays"], max(0, count - 1)
+            details.set_label(
+                f"{last}\n{plays} session{'s' if plays != 1 else ''} · "
+                f"{repeats} rewatch{'es' if repeats != 1 else ''}"
+            )
+        else:
+            details.set_label("—\nReady when you are")
         details.set_tooltip_text(
-            f"{time_text(row['seconds'], precise=True)} watched\n{max(0, count - 1)} rewatches"
+            f"Last watched: {date_text(row['last_seen'])}\n"
+            f"{time_text(row['seconds'], precise=True)} watched · {count} completions"
         )
 
     def choose_folder(self):
@@ -490,7 +630,7 @@ class Window(Adw.ApplicationWindow):
             self.scan_again = True
             return
         self.scanning = True
-        self.refresh_button.set_sensitive(False)
+        self.actions["refresh"].set_enabled(False)
         self.count_label.set_label("Looking for videos…")
         folders = self.store.folders()
         future = self.worker.submit(scan_folders, folders)
@@ -500,7 +640,7 @@ class Window(Adw.ApplicationWindow):
         if self.closed:
             return False
         self.scanning = False
-        self.refresh_button.set_sensitive(True)
+        self.actions["refresh"].set_enabled(True)
         try:
             videos, directories, errors = future.result()
         except OSError as error:
@@ -546,6 +686,7 @@ class Window(Adw.ApplicationWindow):
         window = Gtk.Window(
             title=title, transient_for=self, modal=True, default_width=width, default_height=250
         )
+        window.add_css_class("night-watch")
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header = Adw.HeaderBar()
         header.set_title_widget(label(title, "heading"))
@@ -641,6 +782,7 @@ class Window(Adw.ApplicationWindow):
 
     def session_card(self, session, show_video=False):
         card = margins(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5), 4)
+        card.add_css_class("session-card")
         if show_video:
             title = label(Path(session["path"]).stem, "heading", xalign=0, wrap=True)
             title.set_tooltip_text(session["path"])
@@ -774,7 +916,7 @@ class Window(Adw.ApplicationWindow):
         )
         box.append(
             label(
-                "Keep Video Watcher running while watching. Closing its window keeps tracking; Quit stops it. Playback from before the app was started cannot be recovered.",
+                "Keep Video Watcher running while watching. The window's × stops tracking. To hide the window and keep tracking, choose Hide and Keep Tracking from the menu. Playback from before the app was started cannot be recovered.",
                 wrap=True,
                 xalign=0,
             )

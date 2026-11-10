@@ -1,0 +1,79 @@
+/* Midnight: ink surfaces, warm eyes, and room to breathe. GTK 4.6 compatible. */
+@define-color accent_color #edc582;
+@define-color accent_bg_color #e9bd78;
+@define-color accent_fg_color #171719;
+@define-color window_bg_color #13151a;
+@define-color window_fg_color #eeeef2;
+@define-color view_bg_color #191c22;
+@define-color view_fg_color #eeeef2;
+@define-color headerbar_bg_color #101216;
+@define-color headerbar_fg_color #eeeef2;
+@define-color popover_bg_color #24272f;
+@define-color popover_fg_color #eeeef2;
+@define-color dialog_bg_color #191c22;
+@define-color dialog_fg_color #eeeef2;
+@define-color card_bg_color #1c1f26;
+
+.night-watch { background: #13151a; color: #eeeef2; }
+.night-watch headerbar { background: #101216; box-shadow: none; border-bottom: 1px solid #282b32; }
+.night-watch headerbar button { border-radius: 10px; }
+.brand-name { font-size: 14px; font-weight: 700; }
+.night-watch .dim-label { color: #a0a4b0; opacity: 1; }
+.eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 1.7px; color: #a5a7b4; }
+.amber { color: #edc582; }
+.sidebar { background: #101216; padding: 24px 12px 18px; border-right: 1px solid #282b32; }
+.sidebar-heading { margin: 0 12px 12px; }
+.sidebar list { background: transparent; }
+.sidebar row { border-radius: 10px; margin: 3px 0; color: #a7abb7; }
+.sidebar row:hover { background: #20232a; color: #f1f1f4; }
+.sidebar row:selected { background: #302b23; color: #edc582; }
+.sidebar row:selected image { color: #edc582; }
+.sidebar-note { padding: 14px; border: 1px solid #2c2d32; border-radius: 14px; background: #191b20; }
+.sidebar-note label { font-size: 11px; }
+.main-content { padding: 22px 28px 12px; }
+.hero-title { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+.hero-subtitle { color: #a0a4b0; font-size: 13px; }
+.summary { padding: 17px 18px; border-radius: 16px; border: 1px solid #30333b; background: linear-gradient(135deg, #22252d, #1a1d23); }
+.summary image { color: #d4b47f; }
+.stat-number { font-size: 30px; font-weight: 800; letter-spacing: -0.8px; }
+.stat-label { font-size: 11px; color: #b7bac4; }
+.stat-hint { font-size: 10px; color: #9398a5; }
+.course-card { padding: 14px 18px; border-radius: 14px; background: #1b1e24; border: 1px solid #2b2e36; }
+.progress-percent { color: #edc582; font-weight: 800; }
+.course-detail { font-size: 11px; color: #a0a4b0; }
+.night-watch progressbar trough { background: #31343d; border: none; border-radius: 4px; min-height: 5px; }
+.night-watch progressbar progress { background: linear-gradient(to right, #c39556, #efd199); border: none; border-radius: 4px; min-height: 5px; }
+.course-card progressbar trough, .course-card progressbar progress { min-height: 7px; }
+.night-watch entry, .night-watch searchentry { background: #20232b; border: 1px solid #343842; border-radius: 10px; padding: 8px 12px; box-shadow: none; }
+.night-watch entry:focus-within, .night-watch searchentry:focus-within { border-color: #d4b47f; }
+.night-watch dropdown > button { background: #20232b; border: 1px solid #343842; border-radius: 10px; padding: 8px 12px; }
+.quiet-button { background: #24272e; border: 1px solid #3b3e48; border-radius: 10px; padding: 8px 14px; }
+.quiet-button:hover { background: #30343c; border-color: #777064; }
+.night-watch button.suggested-action { background: #e9bd78; color: #171719; border-radius: 10px; font-weight: 700; }
+.night-watch button.suggested-action:hover { background: #f2d29e; }
+.library-list { background: #191c22; border: 1px solid #2d3039; border-radius: 16px; }
+.library-list > row { border-bottom: 1px solid #292d35; }
+.library-list > row:last-child { border-bottom: none; }
+.library-list > row:hover { background: #232730; }
+.library-list > row:focus { outline: 2px solid #d4b47f; outline-offset: -3px; }
+.video-row { padding: 14px 16px; }
+.video-title { font-size: 13px; font-weight: 600; }
+.video-location { font-size: 11px; color: #9298a6; }
+.video-tile { background: #2c2a26; border: 1px solid #464035; border-radius: 12px; color: #dcbf8c; min-width: 42px; min-height: 42px; }
+.video-state { font-size: 11px; font-weight: 600; }
+.state-complete { color: #add6b7; }
+.state-started { color: #edc582; }
+.state-new { color: #a0a4b0; }
+.video-history { font-size: 11px; color: #a0a4b0; }
+.row-arrow { color: #777f8d; }
+.library-caption { color: #9398a5; font-size: 11px; }
+.status-bar { background: #101216; border-top: 1px solid #282b32; padding: 10px 18px; }
+.status-line { color: #a0a4b0; font-size: 11px; }
+.status-dot { color: #d6b77f; }
+.status-dot.playing { color: #add6b7; }
+.status-note { color: #747c89; font-size: 10px; }
+.session-card { padding: 14px 16px; background: #21242b; border: 1px solid #333640; border-radius: 12px; }
+.facts-grid { background: #20232a; padding: 18px; border: 1px solid #333640; border-radius: 14px; }
+.night-watch popover contents { background: #24272f; color: #eeeef2; border: 1px solid #3b3e47; border-radius: 14px; padding: 6px; }
+.night-watch popover modelbutton { border-radius: 8px; padding: 8px 12px; }
+.night-watch popover modelbutton:hover { background: #37332b; color: #edc582; }

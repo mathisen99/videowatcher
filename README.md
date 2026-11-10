@@ -4,6 +4,10 @@ Watch your courses in VLC. Let the cat remember your progress.
 
 A small Linux app with multiple course folders, completion tracking, rewatches, watch dates, useful statistics, and CSV exports. Everything stays on your computer.
 
+Now dressed in midnight charcoal, amber eyes, and a black-cat theme. Add Folder and Settings live in the **☰ menu**.
+
+![Video Watcher with its black-cat theme, course progress, viewing statistics, and video library](docs/screenshot.png)
+
 ## Install
 
 Paste this **one line** into your terminal as your normal user:
@@ -24,8 +28,8 @@ The installer handles dependencies, VLC codecs, the app launcher, and starting a
 
 Brief accidental opens are ignored. Watching 90% of a video's content counts as completed; pausing or skipping does not. Open a video's history or **Statistics** to see when and how much you watched.
 
-Closing the window keeps tracking. **Quit** stops it.
+**× closes the app and stops tracking.** Want it out of the way? Choose **☰ → Hide and Keep Tracking**. Reopen it from your app menu to return.
 
-**Update:** Quit the app, then run the same install command again. Your history is kept.
+**Update:** Close the app, then run the same install command again. For versions before 0.4, use the old **Quit** button first. Your history is kept.
 
 [More details, manual installation, and troubleshooting](docs/DETAILS.md)

@@ -44,7 +44,7 @@ install_dependencies() {
 
 main() {
     local source_dir='' prefix='' skip_deps=false autostart=true
-    local release='v0.3.0' workdir
+    local release='main' workdir
     local -a install_args=()
     while (($#)); do
         case "$1" in
@@ -71,9 +71,9 @@ main() {
         # shellcheck disable=SC2064
         trap "rm -rf -- $(printf '%q' "$workdir")" EXIT
         printf 'Downloading Video Watcher %s...\n' "$release"
-        download "https://github.com/mathisen99/videowatcher/archive/refs/tags/${release}.tar.gz" "$workdir/source.tar.gz"
+        download "https://github.com/mathisen99/videowatcher/archive/refs/heads/${release}.tar.gz" "$workdir/source.tar.gz"
         tar -xzf "$workdir/source.tar.gz" -C "$workdir"
-        source_dir="$workdir/videowatcher-${release#v}"
+        source_dir="$workdir/videowatcher-${release}"
     fi
     [[ -f "$source_dir/install.py" && -f "$source_dir/videowatcher/__main__.py" ]] || fail 'The app download is incomplete.'
     if ! "$skip_deps"; then install_dependencies; fi
@@ -106,7 +106,7 @@ PY
      (_|   |_)
 
   Open "Video Watcher" from your app menu and add a course folder.
-  If it was already open, click Quit and reopen it to load the update.
+  If an older version is open, quit it before reopening the updated app.
   Your videos and watch history stay right where they are. Purrfect.
 
 CAT

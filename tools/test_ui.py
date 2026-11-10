@@ -35,10 +35,28 @@ def main():
         app.set_application_id("io.github.mathisen99.VideoWatcher.UITest")
         failures = []
 
+        def capture(name):
+            directory = os.environ.get("VIDEOWATCHER_SCREENSHOT_DIR")
+            if not directory:
+                return
+            target = app.window.get_content()
+            snapshot = Gtk.Snapshot.new()
+            paintable = Gtk.WidgetPaintable.new(target)
+            paintable.snapshot(snapshot, target.get_width(), target.get_height())
+            node = snapshot.to_node()
+            if node is None:
+                raise AssertionError("Window has not rendered")
+            texture = app.window.get_renderer().render_texture(node, None)
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            texture.save_to_png(str(Path(directory) / name))
+
         def check():
             try:
                 window = app.window
                 assert window.model.get_n_items() == 300
+                assert window.menu_button.get_menu_model().get_n_items() == 3
+                assert window.lookup_action("add-folder") is not None
+                assert window.lookup_action("settings") is not None
                 window.details(paths[0])
                 window.show_statistics()
                 assert window.course_progress.get_fraction() == 1 / 300
@@ -57,6 +75,8 @@ def main():
                 window.reload()
                 assert window.stack.get_visible_child_name() == "empty"
                 window.hide_window()
+                assert not window.get_visible()
+                window.present()
             except Exception as error:
                 failures.append(error)
             finally:
@@ -65,7 +85,25 @@ def main():
                 app.quit()
             return False
 
-        GLib.timeout_add_seconds(3, check)
+        def ready():
+            try:
+                capture("library.png")
+                app.window.menu_button.popup()
+                GLib.timeout_add(250, menu_ready)
+            except Exception as error:
+                failures.append(error)
+                app.quit()
+            return False
+
+        def menu_ready():
+            try:
+                capture("menu.png")
+                app.window.menu_button.popdown()
+            except Exception as error:
+                failures.append(error)
+            return check()
+
+        GLib.timeout_add_seconds(3, ready)
         app.run([sys.argv[0]])
         if failures:
             raise failures[0]
