@@ -524,7 +524,9 @@ class Window(Adw.ApplicationWindow):
     def setup_row(self, factory, item):
         box = Gtk.Box(spacing=16)
         box.add_css_class("video-row")
-        tile = Gtk.Box(valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
+        # Only the lesson column should absorb spare horizontal space. Otherwise
+        # the icon's expansion propagates to this box and shifts each row.
+        tile = Gtk.Box(valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER, hexpand=False)
         tile.add_css_class("video-tile")
         play_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
         play_icon.set_hexpand(True)
@@ -542,12 +544,21 @@ class Window(Adw.ApplicationWindow):
             width_request=125,
             valign=Gtk.Align.CENTER,
         )
-        state = label("", "video-state", xalign=0)
+        state = label(
+            "", "video-state", xalign=0, ellipsize=Pango.EllipsizeMode.END, max_width_chars=1
+        )
         progress = Gtk.ProgressBar()
         progress_box.append(state)
         progress_box.append(progress)
         box.append(progress_box)
-        details = label("", "video-history", xalign=1, width_chars=21)
+        details = label(
+            "",
+            "video-history",
+            xalign=1,
+            width_chars=21,
+            max_width_chars=21,
+            ellipsize=Pango.EllipsizeMode.END,
+        )
         box.append(details)
         arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
         arrow.add_css_class("row-arrow")

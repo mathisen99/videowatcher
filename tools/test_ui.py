@@ -23,17 +23,48 @@ def main():
         folder.mkdir()
         store = Store(root / "data/history.sqlite3")
         store.add_folder(folder)
-        paths = [str(folder / f"{i:02} - Example lesson.mp4") for i in range(1, 301)]
+        paths = [
+            str(
+                folder
+                / f"{i:03} - {'Short module' if i % 2 else 'A much longer course folder'}"
+                / f"{i:03} - Example lesson{' with a much longer title' if i % 3 else ''}.mp4"
+            )
+            for i in range(1, 301)
+        ]
         for path in paths:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
             Path(path).touch()
         store.add_videos(paths)
         tracker = Tracker(store)
         for position in range(96):
             tracker.sample("demo", Sample(paths[0], position, 100), position)
+        for position in range(36):
+            tracker.sample("demo", Sample(paths[2], position, 100), 100 + position)
         store.db.close()
         app = Application()
         app.set_application_id("io.github.mathisen99.VideoWatcher.UITest")
         failures = []
+
+        def check_alignment():
+            rows = []
+
+            def visit(widget):
+                if widget.has_css_class("video-row") and widget.get_mapped():
+                    columns = []
+                    child = widget.get_first_child()
+                    while child is not None:
+                        allocation = child.get_allocation()
+                        columns.append((allocation.x, allocation.width))
+                        child = child.get_next_sibling()
+                    rows.append(columns)
+                child = widget.get_first_child()
+                while child is not None:
+                    visit(child)
+                    child = child.get_next_sibling()
+
+            visit(app.window.list)
+            assert len(rows) >= 3, "Need multiple rendered rows to check alignment"
+            assert all(row == rows[0] for row in rows), f"Misaligned columns: {rows}"
 
         def capture(name):
             directory = os.environ.get("VIDEOWATCHER_SCREENSHOT_DIR")
@@ -61,7 +92,7 @@ def main():
                 window.show_statistics()
                 assert window.course_progress.get_fraction() == 1 / 300
                 window.sort.set_selected(1)
-                assert window.model.get_string(0) == paths[0]
+                assert window.model.get_string(0) == paths[2]
                 window.settings()
                 window.manage_folders()
                 window.search.set_text("Example lesson")
@@ -87,6 +118,7 @@ def main():
 
         def ready():
             try:
+                check_alignment()
                 capture("library.png")
                 app.window.menu_button.popup()
                 GLib.timeout_add(250, menu_ready)
