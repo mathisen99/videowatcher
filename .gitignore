@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.test-data/
+dist/
+*.sqlite3*
+.ruff_cache/
+.pytest_cache/
+.agents/
+.codex/
+.aws/
+
