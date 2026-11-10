@@ -40,6 +40,15 @@ def main():
             tracker.sample("demo", Sample(paths[0], position, 100), position)
         for position in range(36):
             tracker.sample("demo", Sample(paths[2], position, 100), 100 + position)
+        # Samples run within one real second; give the sorting fixture distinct dates.
+        store.db.executemany(
+            "UPDATE sessions SET started=?, last_seen=? WHERE path=?",
+            [
+                (f"2026-01-0{day}T12:00:00+00:00", f"2026-01-0{day}T12:02:00+00:00", path)
+                for day, path in ((1, paths[0]), (2, paths[2]))
+            ],
+        )
+        store.db.commit()
         store.db.close()
         app = Application()
         app.set_application_id("io.github.mathisen99.VideoWatcher.UITest")
